@@ -841,6 +841,9 @@ func (pc *PeerConnection) CreateAnswer(*AnswerOptions) (SessionDescription, erro
 		return SessionDescription{}, err
 	}
 
+	// update the answer sdp if need: change bundle group attribute compare to the remote offer sdp
+	pc.updateBundleGroupIfNecessary(d, remoteDesc)
+
 	updateSDPOrigin(&pc.sdpOrigin, d)
 	sdpBytes, err := d.Marshal()
 	if err != nil {
@@ -2493,4 +2496,45 @@ func (pc *PeerConnection) setGatherCompleteHandler(handler func()) {
 // https://www.w3.org/TR/webrtc/#attributes-15
 func (pc *PeerConnection) SCTP() *SCTPTransport {
 	return pc.sctpTransport
+}
+
+func (pc *PeerConnection) updateBundleGroupIfNecessary(d *sdp.SessionDescription, remoteDesc *SessionDescription) {
+	// handle the bundle differences
+	bundleGroupInOffer := ""
+	bundleGroupInAnswer := ""
+	for _, a := range remoteDesc.parsed.Attributes {
+		if strings.TrimSpace(a.Key) == sdp.AttrKeyGroup {
+			bundleGroupInOffer = a.Value
+			break
+		}
+	}
+
+	// check if there are any `inactive` media section, and set the port to 0 (m=video 0 xxx xxx)
+	for i, m := range d.MediaDescriptions {
+		for _, a := range m.Attributes {
+			if strings.TrimSpace(a.Key) == sdp.AttrKeyInactive {
+				d.MediaDescriptions[i].MediaName.Port = sdp.RangedPort{Value: 0}
+				break
+			}
+		}
+	}
+
+	// compare the bundle group to the current remote offer
+	var targetAttriubteIdx = -1
+	for i, a := range d.Attributes {
+		if strings.TrimSpace(a.Key) == sdp.AttrKeyGroup {
+			bundleGroupInAnswer = a.Value
+			targetAttriubteIdx = i
+			break
+		}
+	}
+	if targetAttriubteIdx >= 0 {
+		if len(bundleGroupInAnswer) != len(bundleGroupInOffer) {
+			// remove the old one first
+			d.Attributes = append(d.Attributes[:targetAttriubteIdx], d.Attributes[targetAttriubteIdx+1:]...)
+			if len(bundleGroupInOffer) > 0 { // replace it with the one in the offer
+				d.WithValueAttribute(sdp.AttrKeyGroup, bundleGroupInOffer)
+			}
+		}
+	}
 }
