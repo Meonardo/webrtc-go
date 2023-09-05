@@ -24,7 +24,7 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/logging"
 	"github.com/pion/rtcp"
-	"github.com/pion/srtp/v2"
+	"github.com/pion/srtp/v3"
 	"github.com/pion/webrtc/v3/internal/mux"
 	"github.com/pion/webrtc/v3/internal/util"
 	"github.com/pion/webrtc/v3/pkg/rtcerr"
@@ -44,7 +44,8 @@ type DTLSTransport struct {
 	state                 DTLSTransportState
 	srtpProtectionProfile srtp.ProtectionProfile
 
-	onStateChangeHandler func(DTLSTransportState)
+	onStateChangeHandler   func(DTLSTransportState)
+	internalOnCloseHandler func()
 
 	conn *dtls.Conn
 
@@ -322,6 +323,7 @@ func (t *DTLSTransport) Start(remoteParameters DTLSParameters) error {
 
 	var dtlsConn *dtls.Conn
 	dtlsEndpoint := t.iceTransport.newEndpoint(mux.MatchDTLS)
+	dtlsEndpoint.SetOnClose(t.internalOnCloseHandler)
 	role, dtlsConfig, err := prepareTransport()
 	if err != nil {
 		return err
@@ -342,6 +344,7 @@ func (t *DTLSTransport) Start(remoteParameters DTLSParameters) error {
 	dtlsConfig.ExtendedMasterSecret = t.api.settingEngine.dtls.extendedMasterSecret
 	dtlsConfig.ClientCAs = t.api.settingEngine.dtls.clientCAs
 	dtlsConfig.RootCAs = t.api.settingEngine.dtls.rootCAs
+	dtlsConfig.KeyLogWriter = t.api.settingEngine.dtls.keyLogWriter
 
 	// Connect as DTLS Client/Server, function is blocking and we
 	// must not hold the DTLSTransport lock

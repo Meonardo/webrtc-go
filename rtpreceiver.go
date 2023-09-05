@@ -14,7 +14,7 @@ import (
 
 	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
-	"github.com/pion/srtp/v2"
+	"github.com/pion/srtp/v3"
 	"github.com/pion/webrtc/v3/internal/util"
 )
 
@@ -124,6 +124,15 @@ func (r *RTPReceiver) Tracks() []*TrackRemote {
 		tracks = append(tracks, r.tracks[i].track)
 	}
 	return tracks
+}
+
+// RTPTransceiver returns the RTPTransceiver this
+// RTPReceiver belongs too, or nil if none
+func (r *RTPReceiver) RTPTransceiver() *RTPTransceiver {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.tr
 }
 
 // configureReceive initialize the track

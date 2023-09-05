@@ -15,11 +15,11 @@ import (
 
 	"github.com/pion/dtls/v2"
 	dtlsElliptic "github.com/pion/dtls/v2/pkg/crypto/elliptic"
-	"github.com/pion/ice/v2"
+	"github.com/pion/ice/v3"
 	"github.com/pion/logging"
-	"github.com/pion/transport/v2"
-	"github.com/pion/transport/v2/packetio"
-	"github.com/pion/transport/v2/vnet"
+	"github.com/pion/transport/v3"
+	"github.com/pion/transport/v3/packetio"
+	"github.com/pion/transport/v3/vnet"
 	"golang.org/x/net/proxy"
 )
 
@@ -71,6 +71,7 @@ type SettingEngine struct {
 		clientAuth                *dtls.ClientAuthType
 		clientCAs                 *x509.CertPool
 		rootCAs                   *x509.CertPool
+		keyLogWriter              io.Writer
 	}
 	sctp struct {
 		maxReceiveBufferSize uint32
@@ -420,6 +421,12 @@ func (e *SettingEngine) SetDTLSClientCAs(clientCAs *x509.CertPool) {
 // SetDTLSRootCAs sets the root CA certificate pool for DTLS certificate verification.
 func (e *SettingEngine) SetDTLSRootCAs(rootCAs *x509.CertPool) {
 	e.dtls.rootCAs = rootCAs
+}
+
+// SetDTLSKeyLogWriter sets the destination of the TLS key material for debugging.
+// Logging key material compromises security and should only be use for debugging.
+func (e *SettingEngine) SetDTLSKeyLogWriter(writer io.Writer) {
+	e.dtls.keyLogWriter = writer
 }
 
 // SetSCTPMaxReceiveBufferSize sets the maximum receive buffer size.

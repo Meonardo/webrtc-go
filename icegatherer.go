@@ -11,7 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/pion/ice/v2"
+	"github.com/pion/ice/v3"
 	"github.com/pion/logging"
 	"github.com/pion/stun"
 )
@@ -347,7 +347,6 @@ func (g *ICEGatherer) collectStats(collector *statsReportCollector) {
 				Timestamp:     statsTimestampFrom(candidateStats.Timestamp),
 				ID:            candidateStats.ID,
 				Type:          StatsTypeLocalCandidate,
-				NetworkType:   networkType,
 				IP:            candidateStats.IP,
 				Port:          int32(candidateStats.Port),
 				Protocol:      networkType.Protocol(),
@@ -376,7 +375,6 @@ func (g *ICEGatherer) collectStats(collector *statsReportCollector) {
 				Timestamp:     statsTimestampFrom(candidateStats.Timestamp),
 				ID:            candidateStats.ID,
 				Type:          StatsTypeRemoteCandidate,
-				NetworkType:   networkType,
 				IP:            candidateStats.IP,
 				Port:          int32(candidateStats.Port),
 				Protocol:      networkType.Protocol(),

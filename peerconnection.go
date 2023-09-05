@@ -19,12 +19,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pion/ice/v2"
+	"github.com/pion/ice/v3"
 	"github.com/pion/interceptor"
 	"github.com/pion/logging"
 	"github.com/pion/rtcp"
 	"github.com/pion/sdp/v3"
-	"github.com/pion/srtp/v2"
+	"github.com/pion/srtp/v3"
 	"github.com/pion/webrtc/v3/internal/util"
 	"github.com/pion/webrtc/v3/pkg/rtcerr"
 )
@@ -826,7 +826,7 @@ func (pc *PeerConnection) CreateAnswer(*AnswerOptions) (SessionDescription, erro
 	if connectionRole == sdp.ConnectionRole(0) {
 		connectionRole = connectionRoleFromDtlsRole(defaultDtlsRoleAnswer)
 
-		// If one of the agents is lite and the other one is not, the lite agent must be the controlling agent.
+		// If one of the agents is lite and the other one is not, the lite agent must be the controlled agent.
 		// If both or neither agents are lite the offering agent is controlling.
 		// RFC 8445 S6.1.1
 		if isIceLiteSet(remoteDesc.parsed) && !pc.api.settingEngine.candidates.ICELite {
@@ -1042,7 +1042,7 @@ func (pc *PeerConnection) SetRemoteDescription(desc SessionDescription) error { 
 		return &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
-	isRenegotation := pc.currentRemoteDescription != nil
+	isRenegotiation := pc.currentRemoteDescription != nil
 
 	if _, err := desc.Unmarshal(); err != nil {
 		return err
@@ -1145,7 +1145,7 @@ func (pc *PeerConnection) SetRemoteDescription(desc SessionDescription) error { 
 		return err
 	}
 
-	if isRenegotation && pc.iceTransport.haveRemoteCredentialsChange(remoteUfrag, remotePwd) {
+	if isRenegotiation && pc.iceTransport.haveRemoteCredentialsChange(remoteUfrag, remotePwd) {
 		// An ICE Restart only happens implicitly for a SetRemoteDescription of type offer
 		if !weOffer {
 			if err = pc.iceTransport.restart(); err != nil {
@@ -1166,7 +1166,7 @@ func (pc *PeerConnection) SetRemoteDescription(desc SessionDescription) error { 
 
 	currentTransceivers := append([]*RTPTransceiver{}, pc.GetTransceivers()...)
 
-	if isRenegotation {
+	if isRenegotiation {
 		if weOffer {
 			_ = setRTPTransceiverCurrentDirection(&desc, currentTransceivers, true)
 			if err = pc.startRTPSenders(currentTransceivers); err != nil {
@@ -1188,7 +1188,7 @@ func (pc *PeerConnection) SetRemoteDescription(desc SessionDescription) error { 
 	}
 
 	iceRole := ICERoleControlled
-	// If one of the agents is lite and the other one is not, the lite agent must be the controlling agent.
+	// If one of the agents is lite and the other one is not, the lite agent must be the controlled agent.
 	// If both or neither agents are lite the offering agent is controlling.
 	// RFC 8445 S6.1.1
 	if (weOffer && remoteIsLite == pc.api.settingEngine.candidates.ICELite) || (remoteIsLite && !pc.api.settingEngine.candidates.ICELite) {
@@ -2262,6 +2262,16 @@ func (pc *PeerConnection) startTransports(iceRole ICERole, dtlsRole DTLSRole, re
 	if err != nil {
 		pc.log.Warnf("Failed to start manager: %s", err)
 		return
+	}
+
+	pc.dtlsTransport.internalOnCloseHandler = func() {
+		pc.log.Info("Closing PeerConnection from DTLS CloseNotify")
+
+		go func() {
+			if pcClosErr := pc.Close(); pcClosErr != nil {
+				pc.log.Warnf("Failed to close PeerConnection from DTLS CloseNotify: %s", pcClosErr)
+			}
+		}()
 	}
 
 	// Start the dtls transport

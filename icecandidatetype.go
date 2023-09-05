@@ -6,7 +6,7 @@ package webrtc
 import (
 	"fmt"
 
-	"github.com/pion/ice/v2"
+	"github.com/pion/ice/v3"
 )
 
 // ICECandidateType represents the type of the ICE candidate used.
@@ -94,4 +94,16 @@ func getCandidateType(candidateType ice.CandidateType) (ICECandidateType, error)
 		err := fmt.Errorf("%w: %s", errICEInvalidConvertCandidateType, candidateType.String())
 		return ICECandidateType(Unknown), err
 	}
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (t ICECandidateType) MarshalText() ([]byte, error) {
+	return []byte(t.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (t *ICECandidateType) UnmarshalText(b []byte) error {
+	var err error
+	*t, err = NewICECandidateType(string(b))
+	return err
 }
